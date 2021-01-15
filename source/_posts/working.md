@@ -45,4 +45,49 @@ java.lang.ClassNotFoundException: com.netflix.config.CachedDynamicIntProperty
 
 
 
+```
+
+  public void modifyUserId(String phoneUserId, String wxUerId) {
+
+    ActionListener<BulkByScrollResponse> listener = new ActionListener<BulkByScrollResponse>() {
+      @Override
+      public void onResponse(BulkByScrollResponse bulkByScrollResponse) {
+        System.out.println("执行成功");
+      }
+
+      @Override
+      public void onFailure(Exception e) {
+        System.out.println("执行失败：" + e.getMessage());
+      }
+    };
+
+    //创建SearchRequest对象
+    SearchRequest searchRequest = new SearchRequest("bid-browse-log").types("type");
+    //指定查询条件
+    SearchSourceBuilder builder = new SearchSourceBuilder();
+    //terms查询
+    builder.query(QueryBuilders.termsQuery("userId", phoneUserId));
+    //将条件放入request中
+    searchRequest.source(builder);
+
+    UpdateByQueryRequest updateByQueryRequest = new UpdateByQueryRequest(searchRequest);
+    updateByQueryRequest.setConflicts("proceed");
+    updateByQueryRequest.setRefresh(true);
+
+    Map<String, Object> params = new HashMap<String, Object>();
+    params.put("userId", wxUerId);
+    //ctx._source即为该索引自己
+    String code = "bid-browse-log._source.userId=params.userId;";
+    ScriptType type = ScriptType.INLINE;
+    //使用脚本进行更新字段值
+    Script script = new Script(type, Script.DEFAULT_SCRIPT_LANG, code, params);
+    updateByQueryRequest.setScript(script);
+    try {
+      client.getObject().updateByQueryAsync(updateByQueryRequest, RequestOptions.DEFAULT, listener);
+    } catch (Exception e) {
+      System.out.println("执行报错：" + e.getMessage());
+    }
+  }
+```
+
 
